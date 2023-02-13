@@ -9,22 +9,9 @@ import "../node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "../node_modules/operator-filter-registry/src/DefaultOperatorFilterer.sol";
 import "../node_modules/base64-sol/base64.sol";
 import "../node_modules/hardhat/console.sol";
+import "./ERC4906.sol";
 
-/// @title EIP-721 Metadata Update Extension
-interface IERC4906 {
-    /// @dev This event emits when the metadata of a token is changed.
-    /// So that the third-party platforms such as NFT market could
-    /// timely update the images and related attributes of the NFT.
-    event MetadataUpdate(uint256 _tokenId);
-
-    /// @dev This event emits when the metadata of a range of tokens is changed.
-    /// So that the third-party platforms such as NFT market could
-    /// timely update the images and related attributes of the NFTs.
-    event BatchMetadataUpdate(uint256 _fromTokenId, uint256 _toTokenId);
-}
-
-//utility
-contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, IERC4906, ERC2981, Ownable {
+contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private currentTokenId;
 
@@ -41,12 +28,20 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, IERC4906, ERC2981
 
     event moveRandom(uint256 winner, uint256 loser);
 
+    //utility function
     function GetTwoRandomNumbers(uint256 lowerBound, uint256 upperBound) public view returns (uint256, uint256) {
         uint256 randSeed = uint256(keccak256(abi.encodePacked(block.timestamp, block.gaslimit)));
-        uint256 rIdx1 = 1;
-        uint256 rIdx2 = 2;
+        uint256 rIdx1 = block.timestamp;
         uint256 rNum1 = (uint256(keccak256(abi.encodePacked(randSeed, rIdx1))) % (upperBound - lowerBound + 1)) + lowerBound;
+        uint256 rIdx2 = block.timestamp + 1;
         uint256 rNum2 = (uint256(keccak256(abi.encodePacked(randSeed, rIdx2))) % (upperBound - lowerBound + 1)) + lowerBound;
+        if (rNum1 == rNum2) {
+            if (rNum2 == upperBound) {
+                rNum2 = lowerBound;
+            } else {
+                rNum2 = rNum2 + 1;
+            }
+        }
         return (rNum1, rNum2);
     }
 
@@ -66,8 +61,6 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, IERC4906, ERC2981
     }
 
     // allow list operation
-
-    //special for testing
     function addMinter(address _minter) public {
         require(msg.sender == _minter, "Only wallet owner can add minter");
         require(!isMinter(_minter), "Minter is already added");
@@ -92,16 +85,18 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, IERC4906, ERC2981
     }
 
     // metadata control
-    function addNumber(uint256 tokenId) public {
-        require(myNumber[tokenId] < 10, "Number is already 10");
-        myNumber[tokenId] += 1;
-        emit MetadataUpdate(tokenId);
+    function addNumber(uint256 _tokenId) public {
+        require(_exists(_tokenId), "tokenId must be exist");
+        require(myNumber[_tokenId] < 10, "Number is already 10");
+        myNumber[_tokenId] += 1;
+        emit MetadataUpdate(_tokenId);
     }
 
-    function decreaseNumber(uint256 tokenId) public {
-        require(myNumber[tokenId] > 0, "Number is already 0");
-        myNumber[tokenId] -= 1;
-        emit MetadataUpdate(tokenId);
+    function decreaseNumber(uint256 _tokenId) public {
+        require(_exists(_tokenId), "tokenId must be exist");
+        require(myNumber[_tokenId] > 0, "Number is already 0");
+        myNumber[_tokenId] -= 1;
+        emit MetadataUpdate(_tokenId);
     }
 
     function randomMove() public {
@@ -169,7 +164,7 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, IERC4906, ERC2981
     }
 
     function tokenURI(uint256 _tokenId) public view override returns (string memory) {
-        require(1 <= _tokenId && _tokenId <= currentTokenId.current(), "tokenId must be exist");
+        require(_exists(_tokenId), "tokenId must be exist");
         string[11] memory colorMap = ["#000000", "#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#2ca02c", "#98df8a", "#d62728", "#ff9896", "#9467bd", "#c5b0d5"];
         string[3] memory p;
         p[0] = string(
@@ -193,14 +188,12 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, IERC4906, ERC2981
                 "</text>"
             )
         );
-        console.log("before p[2]");
         p[2] = "";
         if (_tokenId == winner) {
             p[2] = string('<text x="160" y="250" font-size="50" text-anchor="middle" dominant-baseline="central" font-weight="bold" fill="blue">WIN</text>');
         } else if (_tokenId == loser) {
             p[2] = string('<text x="160" y="250" font-size="50" text-anchor="middle" dominant-baseline="central" font-weight="bold" fill="blue">LOSE</text>');
         }
-        console.log("after p[2]");
         string memory svg = string(abi.encodePacked(p[0], p[1], p[2], "</svg>"));
         string memory meta = string(
             abi.encodePacked(
@@ -240,10 +233,15 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, IERC4906, ERC2981
         publicMint = _status;
     }
 
+    // ERC2981
+    function setDefaultRoyalty(address receiver, uint96 feeNumerator) public onlyOwner {
+        _setDefaultRoyalty(receiver, feeNumerator);
+    }
+
     /**
-     * @dev See {IERC165-supportsInterface}.
+     * @dev IERC165-supportsInterface
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, ERC2981) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, ERC2981, ERC4906) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 }

@@ -47,7 +47,7 @@ describe("ChangingNumberNFT", function () {
       let image = metaData.image.split(",")[1];
       image = Buffer.from(image, 'base64').toString('ascii');
       //console.log("image:", image);
-      fs.writeFileSync("test1.svg", image);
+      fs.writeFileSync("tmp/test1.svg", image);
     });
 
     it("Should output tokeURI", async function () {
@@ -67,7 +67,7 @@ describe("ChangingNumberNFT", function () {
       let image = metaData.image.split(",")[1];
       image = Buffer.from(image, 'base64').toString('ascii');
       //console.log("image:", image);
-      fs.writeFileSync("test2.svg", image);
+      fs.writeFileSync("tmp/test2.svg", image);
 
       for (let i=0; i<8; i++) {
         await token721.connect(a1).addNumber(1);
@@ -77,7 +77,7 @@ describe("ChangingNumberNFT", function () {
         //console.log(metaData.attributes[0].value);
         image = metaData.image.split(",")[1];
         image = Buffer.from(image, 'base64').toString('ascii');
-        const filename = "test" + (i+3) + ".svg";
+        const filename = "tmp/test" + (i+3) + ".svg";
         fs.writeFileSync(filename, image);
       }
     });
@@ -109,7 +109,42 @@ describe("ChangingNumberNFT", function () {
       metaData2 = JSON.parse(metaData2);
       let image2 = metaData2.image.split(",")[1];
       image2 = Buffer.from(image2, 'base64').toString('ascii');
-      fs.writeFileSync("testLose.svg", image2);
+      fs.writeFileSync("tmp/testLose.svg", image2);
+    });
+
+    //ERC165 related
+    it("implements ERC721", async function () {
+      const result = await token721.supportsInterface("0x80ac58cd");
+      expect(result).to.be.true;
+    });
+
+    it("implements ERC4906", async function () {
+        const result = await token721.supportsInterface("0x49064906");
+        expect(result).to.be.true;
+    });
+
+    it("implements ERC2981", async function () {
+        const result = await token721.supportsInterface("0x2a55205a");
+        expect(result).to.be.true;
+    });
+
+    //ERC2981 related
+    it("implements ERC2981", async function () {
+    await token721.setDefaultRoyalty(owner.address, 1000)
+    const result = await token721.royaltyInfo(1, 1000); 
+    expect(result[0]).to.equal(owner.address);
+    expect(result[1]).to.equal(100);
+    });
+
+    //ERC4906 related
+    it("emits MetadataUpdate event at ", async function () {
+      await token721.setMintable(true);
+      await token721.addMinters([a1.address, a2.address, a3.address, a4.address]);
+      await token721.connect(a1).mintTo(a1.address);
+      await token721.connect(a2).mintTo(a2.address);
+      await expect(token721.addNumber(1)).emit(token721, "MetadataUpdate").withArgs(1);
+      await expect(token721.decreaseNumber(1)).emit(token721, "MetadataUpdate").withArgs(1);
+      await expect(token721.randomMove()).emit(token721, "MetadataUpdate").withArgs(1||2);
     });
   });
 });
