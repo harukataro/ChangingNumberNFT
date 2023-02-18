@@ -5,3 +5,4 @@ cache
 tmp
 coverage
 coverage.json
+cache_hardhat
