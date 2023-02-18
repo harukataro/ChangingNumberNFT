@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "../node_modules/@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "../node_modules/@openzeppelin/contracts/utils/Counters.sol";
-import "../node_modules/@openzeppelin/contracts/access/Ownable.sol";
-import "../node_modules/@openzeppelin/contracts/token/common/ERC2981.sol";
-import "../node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "../node_modules/operator-filter-registry/src/DefaultOperatorFilterer.sol";
-import "../node_modules/base64-sol/base64.sol";
-import "../node_modules/hardhat/console.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/common/ERC2981.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import "operator-filter-registry/src/DefaultOperatorFilterer.sol";
+import "base64-sol/base64.sol";
+import "hardhat/console.sol";
 import "./ERC4906.sol";
 
 contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981, IERC721Receiver, Ownable {
