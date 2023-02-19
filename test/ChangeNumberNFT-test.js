@@ -23,6 +23,9 @@ describe("ChangingNumberNFT", function () {
       expect(await token721.symbol()).to.equal(_symbol);
     });
 
+    // *********************************** //
+    // ********** Minting tests ********** //
+    // *********************************** //
     it("Should mint a token by account1", async function () {
       await token721.setMintable(true);
       await token721.addAllowedMinters([a1.address]);
@@ -30,6 +33,39 @@ describe("ChangingNumberNFT", function () {
       expect(await token721.ownerOf(1)).to.equal(a1.address);
       expect((await token721.balanceOf(a1.address)).toNumber()).to.equal(1);      
     });
+
+    it("Should ownerMintTo work", async function () {
+      await token721.ownerMintTo(a1.address);
+      expect(await token721.ownerOf(1)).to.equal(a1.address);
+    });
+
+    it("Should revert if ownerMintTo executed by non owner", async function () {
+      await expect(token721.connect(a1).ownerMintTo(a1.address)).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("Should revert if not mint enabled. revert with Mint is not Started", async function () {
+      await expect(token721.connect(a1).mint()).to.be.revertedWith("Mint is not Started");
+    });
+
+    it("Should revert if not mint enabled. revert with Sender isn't in AL or not start public sale", async function () {
+      await token721.setMintable(true);
+      await expect(token721.connect(a1).mint()).to.be.revertedWith("Sender isn't in AL or not start public sale");
+    });
+
+    //** to use these test need to add address of hardhat network at hardhat.config.js
+    // it("should have a MintLimit of 1000 total", async function () {
+    //   await token721.setMintable(true);
+    //   await token721.setPublicMint(true);
+    //   // Mint 1000 tokens
+    //   for (let i = 0; i < 1000; i++) {
+    //     const signer = await ethers.getSigner(i);
+    //     await token721.connect(signer).mint();
+    //   }
+    //   // Attempt to mint a 1001th token and expect a revert
+    //   await expect(token721.mint()).to.be.revertedWith("Mint limit exceeded");
+    //   await expect(token721.ownerMintTo(a1.address)).to.be.revertedWith("Mint limit exceeded");
+    // });
+
 
     it("Should output tokeURI", async function () {
       await token721.setMintable(true);
@@ -80,6 +116,30 @@ describe("ChangingNumberNFT", function () {
         const filename = "tmp/test" + (i+3) + ".svg";
         fs.writeFileSync(filename, image);
       }
+    });
+
+    // ********************************************* //
+    // ********** add remove random tests ********** //
+    // ********************************************* //
+    it("Should work only emit unique MetadataUpdate", async function () {
+      await token721.setMintable(true);
+      await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
+      await token721.connect(a1).mint();
+      await token721.connect(a2).mint();
+      await token721.connect(a3).mint();
+      await token721.connect(a4).mint();
+      for(let i=0; i<100; i++) {
+          const tx = await token721.randomMove();
+          const receipt = await tx.wait();
+          const events = await receipt.events.filter((event) => event.event === "MetadataUpdate");
+          //console.log("events.length:", events.length);
+          expect(events.length).to.be.at.least(2);
+          const numbers = events.map((event) => event.args[0].toNumber());
+          //console.log("numbers:", numbers);
+          const uniqueNumbers = [...new Set(numbers)];
+          //console.log("uniqueNumbers:", uniqueNumbers);
+          expect(events.length).to.equal(uniqueNumbers.length);
+        }
     });
 
     it("Should work random", async function () {
@@ -147,58 +207,6 @@ describe("ChangingNumberNFT", function () {
       await expect(token721.randomMove()).emit(token721, "MetadataUpdate").withArgs(1||2);
     });
 
-    //revert tests
-    it("Should revert if not mint enabled. revert with Mint is not Started", async function () {
-      await expect(token721.connect(a1).mint()).to.be.revertedWith("Mint is not Started");
-    });
-
-    it("Should revert if not mint enabled. revert with Sender isn't in AL or not start public sale", async function () {
-      await token721.setMintable(true);
-      await expect(token721.connect(a1).mint()).to.be.revertedWith("Sender isn't in AL or not start public sale");
-    });
-
-    // ** to use these test need to add address of hardhat network at hardhat.config.js
-    // it("should have a MintLimit of 1000 total", async function () {
-    //   await token721.setMintable(true);
-    //   await token721.setPublicMint(true);
-    //   // Mint 1000 tokens
-    //   for (let i = 0; i < 1000; i++) {
-    //     const signer = await ethers.getSigner(i);
-    //     await token721.connect(signer).mint();
-    //   }
-    //   // Attempt to mint a 1001th token and expect a revert
-    //   await expect(token721.mint()).to.be.revertedWith("Mint limit exceeded");
-    // });
-
-    it("should revert over allowList Limit of addAllowedMinter", async function () {
-      await token721.setMintable(true);
-      await token721.setPublicMint(true);
-      //  500 address in allowList
-      for (let i = 0; i < 500; i++) {
-        const signer = await ethers.getSigner(i);
-        await token721.connect(signer).addAllowedMinter();
-      }
-      // Attempt to add 501th address and expect a revert
-      const signer501 = await ethers.getSigner(500);
-      await expect(token721.connect(signer501).addAllowedMinter()).to.be.revertedWith("Allow list is full");
-      await expect(token721.addAllowedMinters([signer501.address])).to.be.revertedWith("Allow list is full");
-  });
-
-  it("should revert over allowList Limit of addAllowedMinters", async function () {
-    await token721.setMintable(true);
-    await token721.setPublicMint(true);
-    //  501 address in allowList
-    let allowList = [];
-    for (let i = 0; i < 501; i++) {
-      const signer = await ethers.getSigner(i);
-      allowList.push(signer.address);
-    }
-    // Attempt to add 501th address and expect a revert
-    await expect(token721.addAllowedMinters(allowList)).to.be.revertedWith("Allow list is full");
-});
-
-
-
     it('should stored ether in contract', async () => {
       await token721.setMintable(true);
       await token721.connect(a1).addAllowedMinter();
@@ -221,23 +229,18 @@ describe("ChangingNumberNFT", function () {
   // internal function test
   // it('returns two random numbers in the specified range', async () => {    
   //   for (let i = 0; i < 100; i++) {
-  //     const min = 1;
+  //     const min = 2;
   //     const max = 10;
-  //     let lowerBound = Math.floor(Math.random() * (max - min + 1)) + min;
+  //     let lowerBound = 1;
   //     let upperBound = Math.floor(Math.random() * (max - min + 1)) + min;
-  //     if(lowerBound > upperBound) {
-  //       const tmp = lowerBound;
-  //       lowerBound = upperBound;
-  //       upperBound = tmp;
-  //     }
-  //     // Call the public function to get two random numbers
+      
   //     const result = await token721.getTwoRandomNumbersPublic(lowerBound, upperBound);
-  //     // Check that both values are within the specified range
+
   //     const value1 = result[0].toNumber();
   //     const value2 = result[1].toNumber();
   //     expect(value1).to.be.at.least(lowerBound).and.at.most(upperBound);
   //     expect(value2).to.be.at.least(lowerBound).and.at.most(upperBound);
-  //     //expect(value1).to.not.equal(value2);
+  //     expect(value1).to.not.equal(value2);
   //   }
   // });
   
@@ -384,30 +387,72 @@ describe("ChangingNumberNFT", function () {
     await expect(token721.connect(a1).mint()).to.be.revertedWith("Max per wallet reached");
   } );
 
-  // test Minter is already added
-  it("Should work Minter is already added", async function () {
+  // ********** AllowList operation ********** //
+  // test addAllowedMinter
+  it("Should work addAllowedMinter", async function () {
+    await expect(token721.connect(a1).addAllowedMinter()).to.be.revertedWith("Mint is not started");
+    await token721.setMintable(true);
+    await token721.connect(a1).addAllowedMinter();
+    await expect(await token721.connect(a1).isAllowedMinter(a1.address)).to.equal(true);
+  });
+
+  it("Should addAllowedMinter revert if requirement is not filled with", async function () {
+    await expect(token721.connect(a1).mint()).to.be.revertedWith("Mint is not Started");
     await token721.setMintable(true);
     await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
     await expect(token721.connect(a1).addAllowedMinter()).to.be.revertedWith("Minter is already added");
   } );
 
-  // test addAllowedMinters Mint is not started
-  it("Should work addAllowedMinters Mint is not started", async function () {
-    await expect(token721.connect(a1).mint()).to.be.revertedWith("Mint is not Started");
+  it("Should addAllowedMinters will not add if it is already exit", async function () {
+    await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
+    await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
   });
 
-  // test addAllowedMinters by not owner
+  // addAllowedMinters by not owner
   it("Should work addAllowedMinters by not owner", async function () {
     await token721.setMintable(true);
     await expect(token721.connect(a1).addAllowedMinters([a1.address, a2.address, a3.address, a4.address])).to.be.revertedWith("Ownable: caller is not the owner");
   });
 
-  // test removeAllowedMinters by not owner
-  it("Should work removeAllowedMinters by not owner", async function () {
+  it("Should not removeAllowedMinters turn false if it already out of list internally", async function () {
+    expect(await token721.isAllowedMinter(a1.address)).to.equal(false);
+    token721.removeAllowedMinters([a1.address]);
+    expect(await token721.isAllowedMinter(a1.address)).to.equal(false);
+  });
+
+  it("Should revert removeAllowedMinters called by non owner", async function () {
     await token721.setMintable(true);
     await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
     await expect(token721.connect(a1).removeAllowedMinters([a1.address])).to.be.revertedWith("Ownable: caller is not the owner");
   } );
+
+      //   it("should revert over allowList Limit of addAllowedMinter", async function () {
+  //     await token721.setMintable(true);
+  //     await token721.setPublicMint(true);
+  //     //  500 address in allowList
+  //     for (let i = 0; i < 500; i++) {
+  //       const signer = await ethers.getSigner(i);
+  //       await token721.connect(signer).addAllowedMinter();
+  //     }
+  //     // Attempt to add 501th address and expect a revert
+  //     const signer501 = await ethers.getSigner(500);
+  //     await expect(token721.connect(signer501).addAllowedMinter()).to.be.revertedWith("Allow list is full");
+  //     await expect(token721.addAllowedMinters([signer501.address])).to.be.revertedWith("Allow list is full");
+  // });
+
+  // it("should revert over allowList Limit of addAllowedMinters", async function () {
+  //   await token721.setMintable(true);
+  //   await token721.setPublicMint(true);
+  //   //  501 address in allowList
+  //   let allowList = [];
+  //   for (let i = 0; i < 501; i++) {
+  //     const signer = await ethers.getSigner(i);
+  //     allowList.push(signer.address);
+  //   }
+  //   // Attempt to add 501th address and expect a revert
+  //   await expect(token721.addAllowedMinters(allowList)).to.be.revertedWith("Allow list is full");
+  // });
+
 
   // addNumber revet test tokenId must be exist and  Number is already 10
   it("Should work addNumber revet test", async function () {

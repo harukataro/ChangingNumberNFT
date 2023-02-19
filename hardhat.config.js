@@ -7,9 +7,9 @@ module.exports = {
   solidity: "0.8.17",
   networks: {
     hardhat: {
-      parallel: true,
+      parallel: false,
       accounts: {
-        count: 20, // Change if you want more wallet for test
+        count: 22, // Change if you want more wallet for test
       },
     },
     goerli: {

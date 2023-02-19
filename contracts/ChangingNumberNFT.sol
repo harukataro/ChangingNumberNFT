@@ -8,8 +8,9 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "operator-filter-registry/src/DefaultOperatorFilterer.sol";
 import "base64-sol/base64.sol";
-import "hardhat/console.sol";
 import "./ERC4906.sol";
+
+//import "hardhat/console.sol";
 
 contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981, Ownable {
     using Counters for Counters.Counter;
@@ -35,17 +36,17 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
     /// @param lowerBound lower bound of random number
     function GetTwoRandomNumbers(uint256 lowerBound, uint256 upperBound) private view returns (uint256, uint256) {
         bytes32 blockHash = blockhash(block.number - 1);
-        uint256 rIdx1 = (uint256(blockHash) % (upperBound - lowerBound + 1)) + lowerBound;
-        uint256 rIdx2 = (uint256(keccak256(abi.encodePacked(blockHash, rIdx1))) % (upperBound - lowerBound + 1)) + lowerBound;
+        uint256 rId1 = (uint256(blockHash) % (upperBound - lowerBound + 1)) + lowerBound;
+        uint256 rId2 = (uint256(keccak256(abi.encodePacked(blockHash, rId1))) % (upperBound - lowerBound + 1)) + lowerBound;
 
-        if (rIdx1 == rIdx2) {
-            if (rIdx2 == upperBound) {
-                rIdx2 = lowerBound;
+        if (rId1 == rId2) {
+            if (rId2 == upperBound) {
+                rId2 = lowerBound;
             } else {
-                rIdx2 = rIdx2 + 1;
+                rId2 = rId2 + 1;
             }
         }
-        return (rIdx1, rIdx2);
+        return (rId1, rId2);
     }
 
     constructor() ERC721("ChangingNumberNFT2", "CHNN2") {}
@@ -65,7 +66,7 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
 
     /// @dev ownerMint
     /// @param recipient address of recipient
-    function ownerMint(address recipient) public onlyOwner returns (uint256) {
+    function ownerMintTo(address recipient) public onlyOwner returns (uint256) {
         require(currentTokenId.current() < MAX_SUPPLY, "Mint limit exceeded");
 
         currentTokenId.increment();
@@ -158,14 +159,16 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
         winner = winToken;
         loser = loseToken;
 
-        emit MetadataUpdate(prevWinToken);
-        if (prevWinToken != winToken) {
+        if (prevWinToken != 0) {
+            emit MetadataUpdate(prevWinToken);
+        }
+        if (prevLoseToken != prevWinToken && prevLoseToken != 0) {
             emit MetadataUpdate(prevLoseToken);
         }
         if (winToken != prevWinToken && winToken != prevLoseToken) {
             emit MetadataUpdate(winToken);
         }
-        if (loseToken != prevWinToken && loseToken != prevLoseToken && winToken != loseToken) {
+        if (loseToken != prevWinToken && loseToken != prevLoseToken && loseToken != winToken) {
             emit MetadataUpdate(loseToken);
         }
         emit moveRandom(winToken, loseToken);
@@ -332,7 +335,7 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
         return super.supportsInterface(interfaceId);
     }
 
-    // fot test only. delete before deploy
+    //fot test only. delete before deploy
     // function getTwoRandomNumbersPublic(uint256 lowerBound, uint256 upperBound) public view returns (uint256, uint256) {
     //     return GetTwoRandomNumbers(lowerBound, upperBound);
     // }
