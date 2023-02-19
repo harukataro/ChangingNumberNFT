@@ -2,29 +2,30 @@
 pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "operator-filter-registry/src/DefaultOperatorFilterer.sol";
 import "base64-sol/base64.sol";
 import "hardhat/console.sol";
 import "./ERC4906.sol";
 
-contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981, IERC721Receiver, Ownable {
+contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private currentTokenId;
 
-    uint256 MAX_SUPPLY = 1000;
-    uint256 max_per_wallet = 5;
+    uint256 private MAX_SUPPLY = 1000;
+    uint256 private MAX_AL_SUPPLY = 500;
+    uint256 private max_per_wallet = 5; // changable
 
     mapping(uint256 => uint256) private myNumber;
     mapping(address => bool) private allowedMinters;
+    uint256 private numOfAllowedMinters;
     bool private mintable;
     bool private publicMint;
-    uint256 loser;
-    uint256 winner;
+    uint256 private loser;
+    uint256 private winner;
 
     event moveRandom(uint256 winner, uint256 loser);
 
@@ -47,13 +48,25 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
         return (rIdx1, rIdx2);
     }
 
-    constructor() ERC721("ChangingNumberNFT", "CHNN") {}
+    constructor() ERC721("ChangingNumberNFT2", "CHNN2") {}
 
-    function mintTo(address recipient) public payable returns (uint256) {
+    function mint() public payable returns (uint256) {
         require(mintable, "Mint is not Started");
-        require(publicMint || isMinter(msg.sender), "Sender isn't in AL or not start public sale");
+        require(publicMint || isAllowedMinter(msg.sender), "Sender isn't in AL or not start public sale");
         require(currentTokenId.current() < MAX_SUPPLY, "Mint limit exceeded");
-        require(balanceOf(recipient) < max_per_wallet, "Max per wallet reached");
+        require(balanceOf(msg.sender) < max_per_wallet, "Max per wallet reached");
+
+        currentTokenId.increment();
+        uint256 newItemId = currentTokenId.current();
+        _safeMint(msg.sender, newItemId);
+        myNumber[newItemId] = 1;
+        return newItemId;
+    }
+
+    /// @dev ownerMint
+    /// @param recipient address of recipient
+    function ownerMint(address recipient) public onlyOwner returns (uint256) {
+        require(currentTokenId.current() < MAX_SUPPLY, "Mint limit exceeded");
 
         currentTokenId.increment();
         uint256 newItemId = currentTokenId.current();
@@ -65,31 +78,40 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
     // allow list operation
 
     /// @dev self allow list operation for experimental
-    function addMinter() public {
+    function addAllowedMinter() public {
         require(mintable, "Mint is not started");
-        require(!isMinter(msg.sender), "Minter is already added");
+        require(!isAllowedMinter(msg.sender), "Minter is already added");
+        require(numOfAllowedMinters < MAX_AL_SUPPLY, "Allow list is full");
         allowedMinters[msg.sender] = true;
+        numOfAllowedMinters += 1;
     }
 
-    /// @dev add Aloow list address only owner
+    /// @dev add Aloow list address onlyOwner
     /// @param _minters address array
-    function addMinters(address[] memory _minters) public onlyOwner {
+    function addAllowedMinters(address[] memory _minters) public onlyOwner {
+        require(numOfAllowedMinters + _minters.length <= MAX_AL_SUPPLY, "Allow list is full");
         for (uint256 i = 0; i < _minters.length; i++) {
-            allowedMinters[_minters[i]] = true;
+            if (allowedMinters[_minters[i]] == false) {
+                allowedMinters[_minters[i]] = true;
+                numOfAllowedMinters += 1;
+            }
         }
     }
 
-    /// @dev remove Allow list address only owner
+    /// @dev remove Allow list address onlyOwner
     /// @param _minters address array
-    function removeMinters(address[] memory _minters) public onlyOwner {
+    function removeAllowedMinters(address[] memory _minters) public onlyOwner {
         for (uint256 i = 0; i < _minters.length; i++) {
-            allowedMinters[_minters[i]] = false;
+            if (allowedMinters[_minters[i]]) {
+                allowedMinters[_minters[i]] = false;
+                numOfAllowedMinters -= 1;
+            }
         }
     }
 
     /// @dev check Allow list address
     /// @param _minter address
-    function isMinter(address _minter) public view returns (bool) {
+    function isAllowedMinter(address _minter) public view returns (bool) {
         return allowedMinters[_minter];
     }
 
@@ -119,6 +141,11 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
         uint256 tokenNum = currentTokenId.current();
         uint256 winToken;
         uint256 loseToken;
+        uint256 prevWinToken;
+        uint256 prevLoseToken;
+
+        prevWinToken = winner;
+        prevLoseToken = loser;
 
         (winToken, loseToken) = GetTwoRandomNumbers(1, tokenNum);
 
@@ -130,8 +157,17 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
         }
         winner = winToken;
         loser = loseToken;
-        emit MetadataUpdate(winToken);
-        emit MetadataUpdate(loseToken);
+
+        emit MetadataUpdate(prevWinToken);
+        if (prevWinToken != winToken) {
+            emit MetadataUpdate(prevLoseToken);
+        }
+        if (winToken != prevWinToken && winToken != prevLoseToken) {
+            emit MetadataUpdate(winToken);
+        }
+        if (loseToken != prevWinToken && loseToken != prevLoseToken && winToken != loseToken) {
+            emit MetadataUpdate(loseToken);
+        }
         emit moveRandom(winToken, loseToken);
     }
 
@@ -297,14 +333,7 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
     }
 
     // fot test only. delete before deploy
-    function getTwoRandomNumbersPublic(uint256 lowerBound, uint256 upperBound) public view returns (uint256, uint256) {
-        return GetTwoRandomNumbers(lowerBound, upperBound);
-    }
-
-    function onERC721Received(
-        address operator,
-        address from,
-        uint256 tokenId,
-        bytes calldata data
-    ) external override returns (bytes4) {}
+    // function getTwoRandomNumbersPublic(uint256 lowerBound, uint256 upperBound) public view returns (uint256, uint256) {
+    //     return GetTwoRandomNumbers(lowerBound, upperBound);
+    // }
 }
