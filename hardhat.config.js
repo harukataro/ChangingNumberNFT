@@ -17,9 +17,14 @@ module.exports = {
       chainId: 5,
       accounts: [process.env.PRIVATE_KEY]
     },
+    polygon: {
+      url: process.env.ALC_POLYGON_URL,
+      chainId: 137,
+      accounts: [process.env.PRIVATE_KEY]
+    },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY
+    apiKey: process.env.POLYGONSCAN_API_KEY
   },
 };
 
