@@ -5,8 +5,8 @@ var fs = require("fs");
 describe("ChangingNumberNFT", function () {
   let BadgeToken;
   let token721;
-  let _name="ChangingNumberNFT2";
-  let _symbol="CHNN2";
+  let _name="ChangingNumberNFT3";
+  let _symbol="CHNN3";
   let a1, a2, a3,a4, a5;
 
   beforeEach(async function () {
@@ -49,7 +49,7 @@ describe("ChangingNumberNFT", function () {
 
     it("Should revert if not mint enabled. revert with Sender isn't in AL or not start public sale", async function () {
       await token721.setMintable(true);
-      await expect(token721.connect(a1).mint()).to.be.revertedWith("Sender isn't in AL or not start public sale");
+      await expect(token721.connect(a1).mint()).to.be.revertedWith("Sender no in AL / before public sale");
     });
 
     //** to use these test need to add address of hardhat network at hardhat.config.js
@@ -90,7 +90,7 @@ describe("ChangingNumberNFT", function () {
       await token721.setMintable(true);
       await token721.addAllowedMinters([a1.address]);
       await token721.connect(a1).mint();
-      await token721.connect(a1).addNumber(1);
+      await token721.changeNumber(1,2);
 
       let tokenURI = await token721.tokenURI(1);
       let metaData = Buffer.from(tokenURI.split(",")[1], 'base64').toString('ascii');
@@ -106,7 +106,7 @@ describe("ChangingNumberNFT", function () {
       fs.writeFileSync("tmp/test2.svg", image);
 
       for (let i=0; i<8; i++) {
-        await token721.connect(a1).addNumber(1);
+        await token721.changeNumber(1, i + 3);
         tokenURI = await token721.tokenURI(1);
         metaData = Buffer.from(tokenURI.split(",")[1], 'base64').toString('ascii');
         metaData = JSON.parse(metaData);
@@ -202,14 +202,13 @@ describe("ChangingNumberNFT", function () {
       await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
       await token721.connect(a1).mint();
       await token721.connect(a2).mint();
-      await expect(token721.addNumber(1)).emit(token721, "MetadataUpdate").withArgs(1);
-      await expect(token721.decreaseNumber(1)).emit(token721, "MetadataUpdate").withArgs(1);
+      await expect(token721.changeNumber(1,2)).emit(token721, "MetadataUpdate").withArgs(1);
       await expect(token721.randomMove()).emit(token721, "MetadataUpdate").withArgs(1||2);
     });
 
     it('should stored ether in contract', async () => {
       await token721.setMintable(true);
-      await token721.connect(a1).addAllowedMinter();
+      await token721.addAllowedMinters([a1.address]);
       await token721.connect(a1).mint({value: ethers.utils.parseEther("1", "ether")});
       const balance = await ethers.provider.getBalance(token721.address);
       expect(balance).to.equal(ethers.utils.parseEther("1", "ether"));
@@ -217,7 +216,7 @@ describe("ChangingNumberNFT", function () {
 
     it('should withdraw by owner', async () => {
       await token721.setMintable(true);
-      await token721.connect(a1).addAllowedMinter();
+      await token721.addAllowedMinters([a1.address]);
       await token721.connect(a1).mint({value: ethers.utils.parseEther("1", "ether")});
       const balance0 = await ethers.provider.getBalance(owner.address);
       await token721.withdraw();
@@ -253,10 +252,10 @@ describe("ChangingNumberNFT", function () {
     await token721.connect(a3).mint();
     await token721.connect(a4).mint();
     await token721.removeAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
-    await expect(token721.connect(a1).mint()).to.be.revertedWith("Sender isn't in AL or not start public sale");
-    await expect(token721.connect(a2).mint()).to.be.revertedWith("Sender isn't in AL or not start public sale");
-    await expect(token721.connect(a3).mint()).to.be.revertedWith("Sender isn't in AL or not start public sale");
-    await expect(token721.connect(a4).mint()).to.be.revertedWith("Sender isn't in AL or not start public sale");
+    await expect(token721.connect(a1).mint()).to.be.revertedWith("Sender no in AL / before public sale");
+    await expect(token721.connect(a2).mint()).to.be.revertedWith("Sender no in AL / before public sale");
+    await expect(token721.connect(a3).mint()).to.be.revertedWith("Sender no in AL / before public sale");
+    await expect(token721.connect(a4).mint()).to.be.revertedWith("Sender no in AL / before public sale");
   
   });
 
@@ -388,20 +387,7 @@ describe("ChangingNumberNFT", function () {
   } );
 
   // ********** AllowList operation ********** //
-  // test addAllowedMinter
-  it("Should work addAllowedMinter", async function () {
-    await expect(token721.connect(a1).addAllowedMinter()).to.be.revertedWith("Mint is not started");
-    await token721.setMintable(true);
-    await token721.connect(a1).addAllowedMinter();
-    await expect(await token721.connect(a1).isAllowedMinter(a1.address)).to.equal(true);
-  });
 
-  it("Should addAllowedMinter revert if requirement is not filled with", async function () {
-    await expect(token721.connect(a1).mint()).to.be.revertedWith("Mint is not Started");
-    await token721.setMintable(true);
-    await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
-    await expect(token721.connect(a1).addAllowedMinter()).to.be.revertedWith("Minter is already added");
-  } );
 
   it("Should addAllowedMinters will not add if it is already exit", async function () {
     await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
@@ -411,7 +397,7 @@ describe("ChangingNumberNFT", function () {
   // addAllowedMinters by not owner
   it("Should work addAllowedMinters by not owner", async function () {
     await token721.setMintable(true);
-    await expect(token721.connect(a1).addAllowedMinters([a1.address, a2.address, a3.address, a4.address])).to.be.revertedWith("Ownable: caller is not the owner");
+    await expect(token721.connect(a1).addAllowedMinters([a1.address, a2.address, a3.address, a4.address])).to.be.revertedWith("Err: caller does not have the Operator role");
   });
 
   it("Should not removeAllowedMinters turn false if it already out of list internally", async function () {
@@ -423,7 +409,7 @@ describe("ChangingNumberNFT", function () {
   it("Should revert removeAllowedMinters called by non owner", async function () {
     await token721.setMintable(true);
     await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
-    await expect(token721.connect(a1).removeAllowedMinters([a1.address])).to.be.revertedWith("Ownable: caller is not the owner");
+    await expect(token721.connect(a1).removeAllowedMinters([a1.address])).to.be.revertedWith("Err: caller does not have the Operator role");
   } );
 
       //   it("should revert over allowList Limit of addAllowedMinter", async function () {
@@ -454,26 +440,13 @@ describe("ChangingNumberNFT", function () {
   // });
 
 
-  // addNumber revet test tokenId must be exist and  Number is already 10
-  it("Should work addNumber revet test", async function () {
+  // changeNumber revet test tokenId must be exist and  Number must be in 0 to 10
+  it("Should work changeNumber revet test", async function () {
     await token721.setMintable(true);
     await token721.addAllowedMinters([a1.address]);
     await token721.connect(a1).mint();
-    await expect(token721.connect(a1).addNumber(2)).to.be.revertedWith("tokenId must be exist");
-    for(let i = 0; i < 9; i++) {
-      await token721.connect(a1).addNumber(1);
-    }
-    await expect(token721.connect(a1).addNumber(1)).to.be.revertedWith("Number is already 10");
-  });
-
-  // decreaseNumber revet test tokenId must be exist and  Number is already 0
-  it("Should work decreaseNumber revet test", async function () {
-    await token721.setMintable(true);
-    await token721.addAllowedMinters([a1.address]);
-    await token721.connect(a1).mint();
-    await expect(token721.connect(a1).decreaseNumber(2)).to.be.revertedWith("tokenId must be exist");
-    await token721.connect(a1).decreaseNumber(1);
-    await expect(token721.connect(a1).decreaseNumber(1)).to.be.revertedWith("Number is already 0");
+    await expect(token721.changeNumber(2,1)).to.be.revertedWith("tokenId must be exist");
+    await expect(token721.changeNumber(1,11)).to.be.revertedWith("Number must be in 0 to 10");
   });
 
   // test randomMove not over 10
@@ -482,11 +455,11 @@ describe("ChangingNumberNFT", function () {
     await token721.addAllowedMinters([a1.address, a2.address]);
     await token721.connect(a1).mint();
     await token721.connect(a2).mint();
-    for(let i = 0; i < 9; i++) {
-      await token721.connect(a1).addNumber(1);
-      await token721.connect(a1).addNumber(2);
-    }
-    await token721.connect(a1).randomMove();
+
+    await token721.changeNumber(1, 10);
+    await token721.changeNumber(2, 10);
+
+    await token721.randomMove();
     let number1 = await token721.connect(a1).getNumber(1);
     let number2 = await token721.connect(a1).getNumber(2);
     let winner = await token721.connect(a1).getWinner();
@@ -503,9 +476,9 @@ describe("ChangingNumberNFT", function () {
     await token721.addAllowedMinters([a1.address, a2.address]);
     await token721.connect(a1).mint();
     await token721.connect(a2).mint();
-    await token721.connect(a1).decreaseNumber(1);
-    await token721.connect(a1).decreaseNumber(2);
-    await token721.connect(a1).randomMove();
+    await token721.changeNumber(1, 0);
+    await token721.changeNumber(2, 0);
+    await token721.randomMove();
     let number1 = await token721.connect(a1).getNumber(1);
     let number2 = await token721.connect(a1).getNumber(2);
     let loser = await token721.connect(a1).getLoser();

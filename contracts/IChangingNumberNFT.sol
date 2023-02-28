@@ -5,4 +5,6 @@ interface IChangingNumberNFT {
     function ownerOf(uint256 _tokenId) external view returns (address);
 
     function getNumber(uint256 _tokenId) external view returns (uint256);
+
+    function changeNumber(uint256 _tokenId, uint256 _newNumber) external;
 }

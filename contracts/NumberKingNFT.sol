@@ -8,9 +8,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "base64-sol/base64.sol";
 import "./ERC4906.sol";
 import "./IChangingNumberNFT.sol";
+import "./OperatorRole.sol";
 import "hardhat/console.sol";
 
-contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, Ownable, ERC4906 {
+contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, OperatorRole, ERC4906 {
     string[8] imageURI;
     mapping(address => bool) isHolder;
     mapping(uint256 => uint256) rank;
@@ -35,6 +36,10 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, Ownable, ERC490
         require(isKing(to, tokenId), "You don't have a ChangingNumberNFT with number 10");
         isHolder[to] = true;
         _safeMint(to, tokenId);
+
+        // reset ChangingNumberNFT to 1
+        IChangingNumberNFT changingNuberContract = IChangingNumberNFT(changingNumberNftAddress);
+        changingNuberContract.changeNumber(tokenId, 1);
     }
 
     function tokenURI(uint256 _tokenId) public view override returns (string memory) {
@@ -61,10 +66,7 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, Ownable, ERC490
     function isKing(address to, uint256 _tokenId) internal view returns (bool) {
         IChangingNumberNFT changingNuberContract = IChangingNumberNFT(changingNumberNftAddress);
 
-        if (changingNuberContract.ownerOf(_tokenId) != to) {
-            return false;
-        }
-        if (changingNuberContract.getNumber(_tokenId) != 10) {
+        if (changingNuberContract.ownerOf(_tokenId) != to || changingNuberContract.getNumber(_tokenId) != 10) {
             return false;
         }
         return true;
@@ -106,52 +108,5 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, Ownable, ERC490
 
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721Enumerable, ERC4906) returns (bool) {
         return super.supportsInterface(interfaceId);
-    }
-
-    // operator role functions
-    function _isOperator(address user) internal view returns (bool) {
-        if (user == owner()) {
-            return true;
-        }
-        for (uint256 i = 0; i < operators.length; i++) {
-            if (operators[i] == user) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * @dev Operator Modifier
-     */
-    modifier onlyOperator() {
-        require(_isOperator(msg.sender), "Err: caller does not have the Operator role");
-        _;
-    }
-
-    function grantOperatorRoleToUser(address user) public onlyOwner {
-        operators.push(user);
-    }
-
-    function revokeOperatorRoleFromUser(address user) public onlyOwner {
-        for (uint256 i = 0; i < operators.length; i++) {
-            if (operators[i] == user) {
-                operators[i] = operators[operators.length - 1];
-                operators.pop();
-                break;
-            }
-        }
-    }
-
-    function hasOperatorRole(address user) public view returns (bool) {
-        return _isOperator(user);
-    }
-
-    function getOperatorMemberCount() public view returns (uint256) {
-        return operators.length;
-    }
-
-    function getOperatorMember(uint256 index) public view returns (address) {
-        return operators[index];
     }
 }

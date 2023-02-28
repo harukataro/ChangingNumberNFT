@@ -5,6 +5,7 @@ require("@nomiclabs/hardhat-etherscan");
 
 module.exports = {
   solidity: "0.8.17",
+  settings: { optimizer: { enabled: true, runs: 1 } },
   networks: {
     hardhat: {
       parallel: false,

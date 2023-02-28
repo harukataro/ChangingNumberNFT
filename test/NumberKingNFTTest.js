@@ -26,7 +26,11 @@ describe("NumberKing", function () {
     const ChangingNumberNFT = await ethers.getContractFactory("ChangingNumberNFT");
     changingNumberNft = await ChangingNumberNFT.deploy();
 
+    // NumberKing に ChangingNumberNFT のアドレスを登録
     await numberKing.setChangingNumberContractAddress(changingNumberNft.address);
+    // ChangingNumberNFT に NumberKing のアドレスを登録
+    await changingNumberNft.setAllowedContract(numberKing.address);
+
     owner = (await ethers.getSigners())[0];
     holder = (await ethers.getSigners())[1]; // 10を持っているユーザー
     holder2 = (await ethers.getSigners())[2]; // 持ってないユーザー
@@ -38,15 +42,11 @@ describe("NumberKing", function () {
     // ChangingNumberNFT を持っているユーザーを準備
     await changingNumberNft.setMintable(true);
     await changingNumberNft.connect(holder).mint();
-    for(let i = 0; i < 9; i++) {
-      await changingNumberNft.connect(holder).addNumber(1);
-    }
+    await changingNumberNft.changeNumber(1, 10);
 
     // ChangingNumberNFTで９を持っているユーザーを準備
     await changingNumberNft.connect(holder3).mint();
-    for(let i = 0; i < 8; i++) {
-      await changingNumberNft.addNumber(2);
-    }
+    await changingNumberNft.changeNumber(2, 9);
 
     // OPERATOR ROLEを持っているユーザーを準備
     await numberKing.grantOperatorRoleToUser(holder4.address);
@@ -72,6 +72,10 @@ describe("NumberKing", function () {
 
     const ownerOfToken = await numberKing.ownerOf(kingTokenId);
     expect(ownerOfToken).to.equal(holder.address);
+
+    // ChangingNumberNFTは１にリセットされる
+    // const newNumber = await changingNumberNft.connect(holder).getNumber(1);
+    // expect(newNumber).to.equal(1);
 
     //10以下の数字を持っていると mint できない
     await expect(
