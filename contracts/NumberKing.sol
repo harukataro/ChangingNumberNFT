@@ -16,10 +16,10 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, OperatorRole, E
     mapping(address => bool) isHolder;
     mapping(uint256 => uint256) rank;
     address[] private operators;
-    address changingNumberNftAddress; // contract address for ChangingNumberNFT as reference
+    address changingNumberAddress; // contract address for ChangingNumber as reference
 
     constructor() ERC721("NumberKing", "NK") {
-        changingNumberNftAddress = 0xbCD589571C4D3eB22775D65bB30c52e6E2eF462F;
+        changingNumberAddress = 0xbCD589571C4D3eB22775D65bB30c52e6E2eF462F;
         imageURI[0] = "https://nftnews.jp/wp-content/uploads/2023/02/King_0.png";
         imageURI[1] = "https://nftnews.jp/wp-content/uploads/2023/02/King_1.png";
         imageURI[2] = "https://nftnews.jp/wp-content/uploads/2023/02/King_2.png";
@@ -37,8 +37,8 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, OperatorRole, E
         isHolder[to] = true;
         _safeMint(to, tokenId);
 
-        // reset ChangingNumberNFT to 1
-        IChangingNumber changingNuberContract = IChangingNumber(changingNumberNftAddress);
+        // reset ChangingNumber to 1
+        IChangingNumber changingNuberContract = IChangingNumber(changingNumberAddress);
         changingNuberContract.changeNumber(tokenId, 1);
     }
 
@@ -64,7 +64,7 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, OperatorRole, E
     }
 
     function isKing(address to, uint256 _tokenId) internal view returns (bool) {
-        IChangingNumber changingNuberContract = IChangingNumber(changingNumberNftAddress);
+        IChangingNumber changingNuberContract = IChangingNumber(changingNumberAddress);
 
         if (changingNuberContract.ownerOf(_tokenId) != to || changingNuberContract.getNumber(_tokenId) != 10) {
             return false;
@@ -77,11 +77,11 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, OperatorRole, E
     }
 
     function getChangingNumberContractAddress() public view onlyOperator returns (address) {
-        return changingNumberNftAddress;
+        return changingNumberAddress;
     }
 
     function setChangingNumberContractAddress(address _address) public onlyOperator {
-        changingNumberNftAddress = _address;
+        changingNumberAddress = _address;
     }
 
     function getRank(uint256 _tokenId) public view returns (uint256) {

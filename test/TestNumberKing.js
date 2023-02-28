@@ -9,7 +9,7 @@ function convertToJason(str) {
 
 describe("NumberKing", function () {
   let numberKing;
-  let changingNumberNft;
+  let changingNumber;
   let owner;
   let holder;
   let holder2;
@@ -23,13 +23,13 @@ describe("NumberKing", function () {
     const NumberKing = await ethers.getContractFactory("NumberKing");
     numberKing = await NumberKing.deploy();
 
-    const ChangingNumberNFT = await ethers.getContractFactory("ChangingNumber");
-    changingNumberNft = await ChangingNumberNFT.deploy();
+    const ChangingNumber = await ethers.getContractFactory("ChangingNumber");
+    changingNumber = await ChangingNumber.deploy();
 
-    // NumberKing に ChangingNumberNFT のアドレスを登録
-    await numberKing.setChangingNumberContractAddress(changingNumberNft.address);
-    // ChangingNumberNFT に NumberKing のアドレスを登録
-    await changingNumberNft.setAllowedContract(numberKing.address);
+    // NumberKing に ChangingNumber のアドレスを登録
+    await numberKing.setChangingNumberContractAddress(changingNumber.address);
+    // ChangingNumber に NumberKing のアドレスを登録
+    await changingNumber.setAllowedContract(numberKing.address);
 
     owner = (await ethers.getSigners())[0];
     holder = (await ethers.getSigners())[1]; // 10を持っているユーザー
@@ -37,16 +37,16 @@ describe("NumberKing", function () {
     holder3 = (await ethers.getSigners())[3]; // 9を持っているユーザー
     holder4 = (await ethers.getSigners())[4]; // OPERATOR ROLEを持っているユーザー
 
-    await changingNumberNft.addAllowedMinters([holder.address, holder2.address, holder3.address]);
+    await changingNumber.addAllowedMinters([holder.address, holder2.address, holder3.address]);
 
-    // ChangingNumberNFT を持っているユーザーを準備
-    await changingNumberNft.setMintable(true);
-    await changingNumberNft.connect(holder).mint();
-    await changingNumberNft.changeNumber(1, 10);
+    // ChangingNumber を持っているユーザーを準備
+    await changingNumber.setMintable(true);
+    await changingNumber.connect(holder).mint();
+    await changingNumber.changeNumber(1, 10);
 
-    // ChangingNumberNFTで９を持っているユーザーを準備
-    await changingNumberNft.connect(holder3).mint();
-    await changingNumberNft.changeNumber(2, 9);
+    // ChangingNumberで９を持っているユーザーを準備
+    await changingNumber.connect(holder3).mint();
+    await changingNumber.changeNumber(2, 9);
 
     // OPERATOR ROLEを持っているユーザーを準備
     await numberKing.grantOperatorRoleToUser(holder4.address);
@@ -54,18 +54,18 @@ describe("NumberKing", function () {
 
   it("should allow a user to mint a token if they have a ChangingNumber with number 10", async function () {
 
-    // ChangingNumberNFTに存在しないトークンは mint できない
+    // ChangingNumberに存在しないトークンは mint できない
     await expect(
       numberKing.connect(holder).safeMint(nonKingTokenId)
     ).to.be.revertedWith("ERC721: invalid token ID");
 
-    // ChangingNumberNFT を持っていないウオレットは mint できない
+    // ChangingNumber を持っていないウオレットは mint できない
     await expect(
       numberKing.connect(holder2).safeMint(kingTokenId)
     ).to.be.revertedWith("You don't have a ChangingNumber with number 10");
 
-    // ChangingNumberNFT を持っているユーザーは mint できる
-    const currentNumber = await changingNumberNft.connect(holder).getNumber(1);
+    // ChangingNumber を持っているユーザーは mint できる
+    const currentNumber = await changingNumber.connect(holder).getNumber(1);
     await expect(numberKing.connect(holder).safeMint(kingTokenId))
       .to.emit(numberKing, "Transfer")
       .withArgs(ethers.constants.AddressZero, holder.address, kingTokenId);
@@ -73,9 +73,9 @@ describe("NumberKing", function () {
     const ownerOfToken = await numberKing.ownerOf(kingTokenId);
     expect(ownerOfToken).to.equal(holder.address);
 
-    // ChangingNumberNFTは１にリセットされる
-    // const newNumber = await changingNumberNft.connect(holder).getNumber(1);
-    // expect(newNumber).to.equal(1);
+    // ChangingNumberは１にリセットされる
+    const newNumber = await changingNumber.connect(holder).getNumber(1);
+    expect(newNumber).to.equal(1);
 
     //10以下の数字を持っていると mint できない
     await expect(
