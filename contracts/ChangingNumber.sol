@@ -11,7 +11,7 @@ import "./ERC4906.sol";
 import "./OperatorRole.sol";
 import "hardhat/console.sol";
 
-contract ChangingNumberNFT is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer, OperatorRole {
+contract ChangingNumber is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer, OperatorRole {
     using Counters for Counters.Counter;
     Counters.Counter private currentTokenId;
 
@@ -31,7 +31,7 @@ contract ChangingNumberNFT is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer,
     event moveRandom(uint256 winner, uint256 loser);
     event LockStatusChange(uint256 tokenId, bool status);
 
-    constructor() ERC721("ChangingNumberNFT3", "CHNN3") {}
+    constructor() ERC721("ChangingNumber3", "CN3") {}
 
     function mint() public payable returns (uint256) {
         require(mintable, "Mint is not Started");
@@ -132,19 +132,6 @@ contract ChangingNumberNFT is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer,
         }
         winner = winToken;
         loser = loseToken;
-
-        // if (prevWinToken != 0) {
-        //     emit MetadataUpdate(prevWinToken);
-        // }
-        // if (prevLoseToken != prevWinToken && prevLoseToken != 0) {
-        //     emit MetadataUpdate(prevLoseToken);
-        // }
-        // if (winToken != prevWinToken && winToken != prevLoseToken) {
-        //     emit MetadataUpdate(winToken);
-        // }
-        // if (loseToken != prevWinToken && loseToken != prevLoseToken && loseToken != winToken) {
-        //     emit MetadataUpdate(loseToken);
-        // }
         emit MetadataUpdate(prevWinToken);
         emit MetadataUpdate(prevLoseToken);
         emit MetadataUpdate(winToken);
@@ -209,9 +196,9 @@ contract ChangingNumberNFT is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer,
             bytes(
                 string(
                     abi.encodePacked(
-                        '{"name": "Changing Number NFT #',
+                        '{"name": "Changing Number #',
                         Strings.toString(_tokenId),
-                        '","description": "Changing Number NFT amazing","attributes": [{"trait_type":"Number","value":"',
+                        '","description": "Changing Number is amazing","attributes": [{"trait_type":"Number","value":"',
                         numberStr,
                         '", "nftStatus": "',
                         nftState,

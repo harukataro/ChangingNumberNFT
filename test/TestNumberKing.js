@@ -23,7 +23,7 @@ describe("NumberKing", function () {
     const NumberKing = await ethers.getContractFactory("NumberKing");
     numberKing = await NumberKing.deploy();
 
-    const ChangingNumberNFT = await ethers.getContractFactory("ChangingNumberNFT");
+    const ChangingNumberNFT = await ethers.getContractFactory("ChangingNumber");
     changingNumberNft = await ChangingNumberNFT.deploy();
 
     // NumberKing に ChangingNumberNFT のアドレスを登録
@@ -52,7 +52,7 @@ describe("NumberKing", function () {
     await numberKing.grantOperatorRoleToUser(holder4.address);
   });
 
-  it("should allow a user to mint a token if they have a ChangingNumberNFT with number 10", async function () {
+  it("should allow a user to mint a token if they have a ChangingNumber with number 10", async function () {
 
     // ChangingNumberNFTに存在しないトークンは mint できない
     await expect(
@@ -62,7 +62,7 @@ describe("NumberKing", function () {
     // ChangingNumberNFT を持っていないウオレットは mint できない
     await expect(
       numberKing.connect(holder2).safeMint(kingTokenId)
-    ).to.be.revertedWith("You don't have a ChangingNumberNFT with number 10");
+    ).to.be.revertedWith("You don't have a ChangingNumber with number 10");
 
     // ChangingNumberNFT を持っているユーザーは mint できる
     const currentNumber = await changingNumberNft.connect(holder).getNumber(1);
@@ -80,7 +80,7 @@ describe("NumberKing", function () {
     //10以下の数字を持っていると mint できない
     await expect(
       numberKing.connect(holder3).safeMint(kingTokenId)
-    ).to.be.revertedWith("You don't have a ChangingNumberNFT with number 10");
+    ).to.be.revertedWith("You don't have a ChangingNumber with number 10");
 
   });
 
@@ -89,7 +89,7 @@ describe("NumberKing", function () {
     const uri = await numberKing.connect(holder).tokenURI(kingTokenId);
     let metaData = convertToJason(uri);
     expect(metaData.name).to.equal("Number King #1");
-    expect(metaData.description).to.equal("Number King is a NFT that can be minted by a user who has a ChangingNumberNFT with number 10.");
+    expect(metaData.description).to.equal("Number King is a NFT that can be minted by a user who has a ChangingNumber with number 10.");
     expect(metaData.attributes[0].trait_type).to.equal("Rank");
     expect(metaData.attributes[0].value).to.equal("0");
     expect(metaData.image).to.equal("https://nftnews.jp/wp-content/uploads/2023/02/King_0.png");

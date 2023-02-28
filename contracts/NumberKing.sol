@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "base64-sol/base64.sol";
 import "./ERC4906.sol";
-import "./IChangingNumberNFT.sol";
+import "./IChangingNumber.sol";
 import "./OperatorRole.sol";
 import "hardhat/console.sol";
 
@@ -33,12 +33,12 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, OperatorRole, E
     function safeMint(uint256 tokenId) public {
         address to = msg.sender;
         require(isHolder[to] == false, "You already have a NumberKing");
-        require(isKing(to, tokenId), "You don't have a ChangingNumberNFT with number 10");
+        require(isKing(to, tokenId), "You don't have a ChangingNumber with number 10");
         isHolder[to] = true;
         _safeMint(to, tokenId);
 
         // reset ChangingNumberNFT to 1
-        IChangingNumberNFT changingNuberContract = IChangingNumberNFT(changingNumberNftAddress);
+        IChangingNumber changingNuberContract = IChangingNumber(changingNumberNftAddress);
         changingNuberContract.changeNumber(tokenId, 1);
     }
 
@@ -49,7 +49,7 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, OperatorRole, E
             abi.encodePacked(
                 '{"name": "Number King #',
                 Strings.toString(_tokenId),
-                '","description": "Number King is a NFT that can be minted by a user who has a ChangingNumberNFT with number 10.",',
+                '","description": "Number King is a NFT that can be minted by a user who has a ChangingNumber with number 10.",',
                 '"attributes": [{"trait_type":"Rank","value":"',
                 Strings.toString(myRank),
                 '"}],',
@@ -64,7 +64,7 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, OperatorRole, E
     }
 
     function isKing(address to, uint256 _tokenId) internal view returns (bool) {
-        IChangingNumberNFT changingNuberContract = IChangingNumberNFT(changingNumberNftAddress);
+        IChangingNumber changingNuberContract = IChangingNumber(changingNumberNftAddress);
 
         if (changingNuberContract.ownerOf(_tokenId) != to || changingNuberContract.getNumber(_tokenId) != 10) {
             return false;
