@@ -4,24 +4,20 @@ pragma solidity ^0.8.13;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "base64-sol/base64.sol";
 import "./ERC4906.sol";
 import "./IChangingNumberNFT.sol";
 import "hardhat/console.sol";
 
-contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, Ownable, ERC4906, AccessControlEnumerable {
+contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, Ownable, ERC4906 {
     string[8] imageURI;
     mapping(address => bool) isHolder;
     mapping(uint256 => uint256) rank;
+    address[] private operators;
     address changingNumberNftAddress; // contract address for ChangingNumberNFT as reference
 
-    bytes32 public constant OPERATOR = keccak256("OPERATOR_ROLE");
-
     constructor() ERC721("NumberKing", "NK") {
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(OPERATOR, msg.sender);
         changingNumberNftAddress = 0xbCD589571C4D3eB22775D65bB30c52e6E2eF462F;
         imageURI[0] = "https://nftnews.jp/wp-content/uploads/2023/02/King_0.png";
         imageURI[1] = "https://nftnews.jp/wp-content/uploads/2023/02/King_1.png";
@@ -74,15 +70,15 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, Ownable, ERC490
         return true;
     }
 
-    function updateImageURI(string[8] memory _imageURI) public onlyRole(OPERATOR) {
+    function updateImageURI(string[8] memory _imageURI) public onlyOperator {
         imageURI = _imageURI;
     }
 
-    function getChangingNumberContractAddress() public view onlyRole(OPERATOR) returns (address) {
+    function getChangingNumberContractAddress() public view onlyOperator returns (address) {
         return changingNumberNftAddress;
     }
 
-    function setChangingNumberContractAddress(address _address) public onlyRole(OPERATOR) {
+    function setChangingNumberContractAddress(address _address) public onlyOperator {
         changingNumberNftAddress = _address;
     }
 
@@ -91,7 +87,7 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, Ownable, ERC490
         return rank[_tokenId];
     }
 
-    function setRank(uint256 _tokenId, uint256 _rank) public onlyRole(OPERATOR) {
+    function setRank(uint256 _tokenId, uint256 _rank) public onlyOperator {
         require(_exists(_tokenId), "tokenId must be exist for setRank");
         require(0 <= _rank && _rank <= 7, "rank must be 0 to 7");
         rank[_tokenId] = _rank;
@@ -108,32 +104,54 @@ contract NumberKing is ERC721, ERC721Enumerable, ERC721Burnable, Ownable, ERC490
         super._beforeTokenTransfer(from, to, tokenId, batchSize);
     }
 
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721Enumerable, ERC4906, AccessControlEnumerable) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721Enumerable, ERC4906) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
-    // admin role functions
-    function grantOperatorRoleToUser(address user) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        grantRole(OPERATOR, user);
+    // operator role functions
+    function _isOperator(address user) internal view returns (bool) {
+        if (user == owner()) {
+            return true;
+        }
+        for (uint256 i = 0; i < operators.length; i++) {
+            if (operators[i] == user) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    function revokeOperatorRoleFromUser(address user) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        revokeRole(OPERATOR, user);
+    /**
+     * @dev Operator Modifier
+     */
+    modifier onlyOperator() {
+        require(_isOperator(msg.sender), "Err: caller does not have the Operator role");
+        _;
     }
 
-    function hasAdminRole(address user) public view returns (bool) {
-        return hasRole(DEFAULT_ADMIN_ROLE, user);
+    function grantOperatorRoleToUser(address user) public onlyOwner {
+        operators.push(user);
+    }
+
+    function revokeOperatorRoleFromUser(address user) public onlyOwner {
+        for (uint256 i = 0; i < operators.length; i++) {
+            if (operators[i] == user) {
+                operators[i] = operators[operators.length - 1];
+                operators.pop();
+                break;
+            }
+        }
     }
 
     function hasOperatorRole(address user) public view returns (bool) {
-        return hasRole(OPERATOR, user);
+        return _isOperator(user);
     }
 
     function getOperatorMemberCount() public view returns (uint256) {
-        return getRoleMemberCount(OPERATOR);
+        return operators.length;
     }
 
     function getOperatorMember(uint256 index) public view returns (address) {
-        return getRoleMember(OPERATOR, index);
+        return operators[index];
     }
 }

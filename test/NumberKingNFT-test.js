@@ -131,12 +131,12 @@ describe("NumberKing", function () {
   });
 
   // Operator control features
-  it("Should revoke  Operator", async function () {
+  it("Should work Operator controls", async function () {
     let num =  await numberKing.connect(holder4).getOperatorMemberCount();
-    expect(num).to.equal(2);
+    expect(num).to.equal(1);
 
     //holder4 is 2nd member
-    let op = await numberKing.connect(holder4).getOperatorMember(1);
+    let op = await numberKing.connect(holder4).getOperatorMember(0);
     expect(op).to.equal(holder4.address);
 
     let hasOp = await numberKing.connect(holder4).hasOperatorRole(holder4.address);
@@ -144,15 +144,11 @@ describe("NumberKing", function () {
     
     await numberKing.revokeOperatorRoleFromUser(holder4.address);
     num =  await numberKing.connect(holder4).getOperatorMemberCount();
-    expect(num).to.equal(1);
-
-    //owner is 1st member
-    op = await numberKing.connect(holder4).getOperatorMember(0);
-    expect(op).to.equal(owner.address);
+    expect(num).to.equal(0);
 
     await expect(
       numberKing.connect(holder4).setRank(kingTokenId, 3)
-    ).to.be.revertedWith("AccessControl: account 0x15d34aaf54267db7d7c367839aaf71a00a2c6a65 is missing role 0x97667070c54ef182b0f5858b034beac1b6f3089aa2d3188bb1e8929f4fa9b929");
+    ).to.be.revertedWith("Err: caller does not have the Operator role");
   });
 
 });
