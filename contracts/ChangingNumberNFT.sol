@@ -8,20 +8,20 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "operator-filter-registry/src/DefaultOperatorFilterer.sol";
 import "base64-sol/base64.sol";
 import "./ERC4906.sol";
-import "./IChangingNumberNFT.sol";
 import "./OperatorRole.sol";
 import "hardhat/console.sol";
 
-contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981, OperatorRole {
+contract ChangingNumberNFT is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer, OperatorRole {
     using Counters for Counters.Counter;
     Counters.Counter private currentTokenId;
 
     uint256 private MAX_SUPPLY = 1000;
     uint256 private MAX_AL_SUPPLY = 500;
-    uint256 private max_per_wallet = 5; // changable
+    uint256 private MAX_PER_WALLET = 5;
 
     mapping(uint256 => uint256) private myNumber;
     mapping(address => bool) private allowedMinters;
+    mapping(uint256 => bool) private lockStatus;
     uint256 private numOfAllowedMinters;
     bool private mintable;
     bool private publicMint;
@@ -29,14 +29,15 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
     uint256 private winner;
 
     event moveRandom(uint256 winner, uint256 loser);
+    event LockStatusChange(uint256 tokenId, bool status);
 
     constructor() ERC721("ChangingNumberNFT3", "CHNN3") {}
 
     function mint() public payable returns (uint256) {
         require(mintable, "Mint is not Started");
-        require(publicMint || isAllowedMinter(msg.sender), "Sender no in AL / before public sale");
+        require(publicMint || allowedMinters[msg.sender], "Sender no in AL / before public sale");
         require(currentTokenId.current() < MAX_SUPPLY, "Mint limit exceeded");
-        require(balanceOf(msg.sender) < max_per_wallet, "Max per wallet reached");
+        require(balanceOf(msg.sender) < MAX_PER_WALLET, "Max per wallet reached");
 
         currentTokenId.increment();
         uint256 newItemId = currentTokenId.current();
@@ -49,6 +50,7 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
     /// @param recipient address of recipient
     function ownerMintTo(address recipient) public onlyOwner returns (uint256) {
         require(currentTokenId.current() < MAX_SUPPLY, "Mint limit exceeded");
+        require(balanceOf(recipient) < MAX_PER_WALLET, "Max per wallet reached");
 
         currentTokenId.increment();
         uint256 newItemId = currentTokenId.current();
@@ -95,7 +97,8 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
     /// @param _number number
     function changeNumber(uint256 _tokenId, uint256 _number) public onlyOperator {
         require(_exists(_tokenId), "tokenId must be exist");
-        require(0 <= _number && _number <= 10, "Number must be in 0 to 10");
+        require(_number <= 10, "Number must be smaller than 10");
+        require(lockStatus[_tokenId] == false, "Token is locked");
         myNumber[_tokenId] = _number;
         emit MetadataUpdate(_tokenId);
     }
@@ -104,11 +107,8 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
     /// this is for testing purpose as public. anyone can call this function.
     function randomMove() public onlyOperator {
         uint256 tokenNum = currentTokenId.current();
-        uint256 prevWinToken;
-        uint256 prevLoseToken;
-
-        prevWinToken = winner;
-        prevLoseToken = loser;
+        uint256 prevWinToken = winner;
+        uint256 prevLoseToken = loser;
 
         // random number generator
         bytes32 blockHash = blockhash(block.number - 1);
@@ -127,24 +127,28 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
         if (myNumber[winToken] < 10) {
             myNumber[winToken] += 1;
         }
-        if (myNumber[loseToken] > 0) {
+        if (myNumber[loseToken] > 0 && lockStatus[loseToken] == false) {
             myNumber[loseToken] -= 1;
         }
         winner = winToken;
         loser = loseToken;
 
-        if (prevWinToken != 0) {
-            emit MetadataUpdate(prevWinToken);
-        }
-        if (prevLoseToken != prevWinToken && prevLoseToken != 0) {
-            emit MetadataUpdate(prevLoseToken);
-        }
-        if (winToken != prevWinToken && winToken != prevLoseToken) {
-            emit MetadataUpdate(winToken);
-        }
-        if (loseToken != prevWinToken && loseToken != prevLoseToken && loseToken != winToken) {
-            emit MetadataUpdate(loseToken);
-        }
+        // if (prevWinToken != 0) {
+        //     emit MetadataUpdate(prevWinToken);
+        // }
+        // if (prevLoseToken != prevWinToken && prevLoseToken != 0) {
+        //     emit MetadataUpdate(prevLoseToken);
+        // }
+        // if (winToken != prevWinToken && winToken != prevLoseToken) {
+        //     emit MetadataUpdate(winToken);
+        // }
+        // if (loseToken != prevWinToken && loseToken != prevLoseToken && loseToken != winToken) {
+        //     emit MetadataUpdate(loseToken);
+        // }
+        emit MetadataUpdate(prevWinToken);
+        emit MetadataUpdate(prevLoseToken);
+        emit MetadataUpdate(winToken);
+        emit MetadataUpdate(loseToken);
         emit moveRandom(winToken, loseToken);
     }
 
@@ -163,6 +167,19 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
         return loser;
     }
 
+    // ******************** lock function ******************** //
+    function lockNFT(uint256 _tokenId, bool _status) public {
+        require(ownerOf(_tokenId) == msg.sender, "You are not the owner of this token");
+        if (lockStatus[_tokenId] != _status) {
+            lockStatus[_tokenId] = _status;
+            emit LockStatusChange(_tokenId, _status);
+        }
+    }
+
+    function getLockStatus(uint256 _tokenId) public view returns (bool) {
+        return lockStatus[_tokenId];
+    }
+
     // ******************** tokenURI ******************** //
     /// @dev get metadata for specific token id
     /// @param _tokenId token id
@@ -171,20 +188,19 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
         string[11] memory colorMap = ["#000000", "#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#2ca02c", "#98df8a", "#d62728", "#ff9896", "#9467bd", "#c5b0d5"];
         string memory color = colorMap[myNumber[_tokenId]];
         string memory numberStr = Strings.toString(myNumber[_tokenId]);
-        string memory randomState = _tokenId == winner ? "WIN" : _tokenId == loser ? "LOSE" : "";
+        string memory nftState = _tokenId == winner ? "WIN" : _tokenId == loser ? "LOSE" : "";
+        if (lockStatus[_tokenId]) {
+            nftState = "LOCKED";
+        }
 
         string memory svg = string(
             abi.encodePacked(
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320"><rect x="10" y="10" width="300" height="300" fill="none" stroke="#fff" stroke-width="2" /><rect x="15" y="15" width="290" height="290" fill="',
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320"><rect x="15" y="15" width="290" height="290" fill="',
                 color,
-                '" stroke="',
-                color,
-                '" stroke-width="2" /><circle cx="160" cy="160" r="120" stroke="white" fill="white"/><text x="160" y="160" font-size="140" text-anchor="middle" dominant-baseline="central" font-weight="bold" fill="',
-                color,
-                '">',
+                '" stroke-width="2" /><circle cx="160" cy="160" r="120" fill="white"/><text x="160" y="160" font-size="140" text-anchor="middle" dominant-baseline="central" font-weight="bold" fill="black">',
                 numberStr,
                 '</text><text x="160" y="250" font-size="50" text-anchor="middle" dominant-baseline="central" font-weight="bold" fill="blue">',
-                randomState,
+                nftState,
                 "</text></svg>"
             )
         );
@@ -197,8 +213,8 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
                         Strings.toString(_tokenId),
                         '","description": "Changing Number NFT amazing","attributes": [{"trait_type":"Number","value":"',
                         numberStr,
-                        '", "rundomState": "',
-                        randomState,
+                        '", "nftStatus": "',
+                        nftState,
                         '"}],"image": "data:image/svg+xml;base64,',
                         Base64.encode(bytes(svg)),
                         '"}'
@@ -236,17 +252,6 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
     /// @dev set public mint state
     function setPublicMint(bool _status) public onlyOwner {
         publicMint = _status;
-    }
-
-    /// @dev get max_per_wallet
-    function getMaxPerWallet() public view returns (uint256) {
-        return max_per_wallet;
-    }
-
-    /// @dev set max_per_wallet
-    function setMaxPerWallet(uint256 _max) public onlyOwner {
-        require(_max < 100, "max_per_wallet must be less than 100");
-        max_per_wallet = _max;
     }
 
     // ******************** DefaultOperatorFilterer ******************** //
@@ -296,9 +301,4 @@ contract ChangingNumberNFT is DefaultOperatorFilterer, ERC721, ERC4906, ERC2981,
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, ERC2981, ERC4906) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
-
-    //fot test only. delete before deploy
-    // function getTwoRandomNumbersPublic(uint256 lowerBound, uint256 upperBound) public view returns (uint256, uint256) {
-    //     return GetTwoRandomNumbers(lowerBound, upperBound);
-    // }
 }

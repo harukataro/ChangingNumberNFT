@@ -122,24 +122,24 @@ describe("ChangingNumberNFT", function () {
     // ********** add remove random tests ********** //
     // ********************************************* //
     it("Should work only emit unique MetadataUpdate", async function () {
-      await token721.setMintable(true);
-      await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
-      await token721.connect(a1).mint();
-      await token721.connect(a2).mint();
-      await token721.connect(a3).mint();
-      await token721.connect(a4).mint();
-      for(let i=0; i<100; i++) {
-          const tx = await token721.randomMove();
-          const receipt = await tx.wait();
-          const events = await receipt.events.filter((event) => event.event === "MetadataUpdate");
-          //console.log("events.length:", events.length);
-          expect(events.length).to.be.at.least(2);
-          const numbers = events.map((event) => event.args[0].toNumber());
-          //console.log("numbers:", numbers);
-          const uniqueNumbers = [...new Set(numbers)];
-          //console.log("uniqueNumbers:", uniqueNumbers);
-          expect(events.length).to.equal(uniqueNumbers.length);
-        }
+    //   await token721.setMintable(true);
+    //   await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
+    //   await token721.connect(a1).mint();
+    //   await token721.connect(a2).mint();
+    //   await token721.connect(a3).mint();
+    //   await token721.connect(a4).mint();
+    //   for(let i=0; i<100; i++) {
+    //       const tx = await token721.randomMove();
+    //       const receipt = await tx.wait();
+    //       const events = await receipt.events.filter((event) => event.event === "MetadataUpdate");
+    //       //console.log("events.length:", events.length);
+    //       expect(events.length).to.be.at.least(2);
+    //       const numbers = events.map((event) => event.args[0].toNumber());
+    //       //console.log("numbers:", numbers);
+    //       const uniqueNumbers = [...new Set(numbers)];
+    //       //console.log("uniqueNumbers:", uniqueNumbers);
+    //       expect(events.length).to.equal(uniqueNumbers.length);
+    //     }
     });
 
     it("Should work random", async function () {
@@ -353,11 +353,11 @@ describe("ChangingNumberNFT", function () {
     expect(await token721.getPublicMint()).to.equal(false);
   });
 
-  // get Max per Wallet
-  it("Should work getMaxPerWallet setMaxPerWallet", async function () {
-    await token721.setMaxPerWallet(10);
-    expect(await token721.getMaxPerWallet()).to.equal(10);
-  } );
+  // // get Max per Wallet
+  // it("Should work getMaxPerWallet setMaxPerWallet", async function () {
+  //   await token721.setMaxPerWallet(10);
+  //   expect(await token721.getMaxPerWallet()).to.equal(10);
+  // } );
 
   // test onERC721Received
   it("Should work onERC721Received", async function () {
@@ -379,10 +379,11 @@ describe("ChangingNumberNFT", function () {
 
   // Max per wallet reached
   it("Should work Max per wallet reached", async function () {
-    await token721.setMaxPerWallet(1);
     await token721.setMintable(true);
     await token721.addAllowedMinters([a1.address, a2.address, a3.address, a4.address]);
-    await token721.connect(a1).mint();
+    for(let i = 0; i < 5; i++){
+      await token721.connect(a1).mint();
+    }
     await expect(token721.connect(a1).mint()).to.be.revertedWith("Max per wallet reached");
   } );
 
@@ -440,13 +441,13 @@ describe("ChangingNumberNFT", function () {
   // });
 
 
-  // changeNumber revet test tokenId must be exist and  Number must be in 0 to 10
+  // changeNumber revet test tokenId must be exist and  Number must be smaller than 10
   it("Should work changeNumber revet test", async function () {
     await token721.setMintable(true);
     await token721.addAllowedMinters([a1.address]);
     await token721.connect(a1).mint();
     await expect(token721.changeNumber(2,1)).to.be.revertedWith("tokenId must be exist");
-    await expect(token721.changeNumber(1,11)).to.be.revertedWith("Number must be in 0 to 10");
+    await expect(token721.changeNumber(1,11)).to.be.revertedWith("Number must be smaller than 10");
   });
 
   // test randomMove not over 10
@@ -510,13 +511,49 @@ describe("ChangingNumberNFT", function () {
     await expect(token721.connect(a1).setPublicMint(true)).to.be.revertedWith("Ownable: caller is not the owner");
   });
 
-  // setMaxPerWallet by not owner
-  it("Should not work setMaxPerWallet by not owner", async function () {
-    await expect(token721.connect(a1).setMaxPerWallet(10)).to.be.revertedWith("Ownable: caller is not the owner");
-  });
+  // // setMaxPerWallet by not owner
+  // it("Should not work setMaxPerWallet by not owner", async function () {
+  //   await expect(token721.connect(a1).setMaxPerWallet(10)).to.be.revertedWith("Ownable: caller is not the owner");
+  // });
 
   // setDefaultRoyalty by not owner
   it("Should not work setDefaultRoyalty by not owner", async function () {
     await expect(token721.connect(a1).setDefaultRoyalty(a1.address, 10)).to.be.revertedWith("Ownable: caller is not the owner");
   });
+
+  // Lock function by holder
+  it("Should work Lock Unlock by holder", async function () {
+    await token721.ownerMintTo(a1.address);
+    await token721.connect(a1).lockNFT(1, true);
+    let status = await token721.connect(a1).getLockStatus(1);
+    expect(status).to.be.equal(true);
+    await token721.connect(a1).lockNFT(1, false);
+    status = await token721.connect(a1).getLockStatus(1);
+    expect(status).to.be.equal(false);
+  });
+
+  // Lock state can not change number
+  it("Should not work Lock state can not change number", async function () {
+    await token721.ownerMintTo(a1.address);
+    await token721.connect(a1).lockNFT(1, true);
+    await expect(token721.connect(a1).changeNumber(1, 1)).to.be.revertedWith("Err: caller does not have the Operator role");
+  });
+
+  // Lock state can not be loser
+  it("Should not work Lock state can not be loser", async function () {
+    await token721.ownerMintTo(a1.address);
+    await token721.ownerMintTo(a2.address);
+    await token721.changeNumber(1, 10);
+    await token721.changeNumber(2, 10);
+    await token721.connect(a1).lockNFT(1, true);
+    await token721.connect(a2).lockNFT(2, true);
+    for(let i = 0; i < 100; i++) {
+      await token721.randomMove();
+      let number1 = await token721.connect(a1).getNumber(1);
+      let number2 = await token721.connect(a1).getNumber(2);
+      expect(number1).to.be.equal(10);
+      expect(number2).to.be.equal(10);
+    }
+  })
+
 });

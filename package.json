@@ -21,6 +21,7 @@
     "base64-sol": "^1.1.0",
     "chai": "^4.3.7",
     "dotenv": "^16.0.3",
+    "hardhat-contract-sizer": "^2.8.0",
     "operator-filter-registry": "^1.4.0"
   }
 }

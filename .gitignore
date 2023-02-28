@@ -9,3 +9,4 @@ cache_hardhat
 .env
 hardhatOperationMemo.txt
 .hintrc
+.DS_Store

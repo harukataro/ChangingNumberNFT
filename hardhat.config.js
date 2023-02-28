@@ -2,6 +2,7 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 require("@nomiclabs/hardhat-etherscan");
+require('hardhat-contract-sizer');
 
 module.exports = {
   solidity: "0.8.17",
