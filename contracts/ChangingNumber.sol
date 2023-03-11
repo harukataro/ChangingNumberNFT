@@ -9,6 +9,7 @@ import "operator-filter-registry/src/DefaultOperatorFilterer.sol";
 import "base64-sol/base64.sol";
 import "./ERC4906.sol";
 import "./OperatorRole.sol";
+import "./IZabuton.sol";
 import "hardhat/console.sol";
 
 contract ChangingNumber is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer, OperatorRole {
@@ -27,11 +28,12 @@ contract ChangingNumber is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer, Op
     bool private publicMint;
     uint256 private loser;
     uint256 private winner;
+    address private zabutonAddress;
 
     event moveRandom(uint256 winner, uint256 loser);
     event LockStatusChange(uint256 tokenId, bool status);
 
-    constructor() ERC721("ChangingNumber3", "CN3") {}
+    constructor() ERC721("ChangingNumber4", "CN4") {}
 
     function mint() public payable returns (uint256) {
         require(mintable, "Mint is not Started");
@@ -172,25 +174,14 @@ contract ChangingNumber is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer, Op
     /// @param _tokenId token id
     function tokenURI(uint256 _tokenId) public view override returns (string memory) {
         require(_exists(_tokenId), "tokenId must be exist");
-        string[11] memory colorMap = ["#000000", "#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#2ca02c", "#98df8a", "#d62728", "#ff9896", "#9467bd", "#c5b0d5"];
-        string memory color = colorMap[myNumber[_tokenId]];
+        uint256 number = myNumber[_tokenId];
         string memory numberStr = Strings.toString(myNumber[_tokenId]);
         string memory nftState = _tokenId == winner ? "WIN" : _tokenId == loser ? "LOSE" : "";
         if (lockStatus[_tokenId]) {
             nftState = "LOCKED";
         }
 
-        string memory svg = string(
-            abi.encodePacked(
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320"><rect x="15" y="15" width="290" height="290" fill="',
-                color,
-                '" stroke-width="2" /><circle cx="160" cy="160" r="120" fill="white"/><text x="160" y="160" font-size="140" text-anchor="middle" dominant-baseline="central" font-weight="bold" fill="black">',
-                numberStr,
-                '</text><text x="160" y="250" font-size="50" text-anchor="middle" dominant-baseline="central" font-weight="bold" fill="blue">',
-                nftState,
-                "</text></svg>"
-            )
-        );
+        IZabuton zabuton = IZabuton(zabutonAddress);
 
         string memory json = Base64.encode(
             bytes(
@@ -203,7 +194,7 @@ contract ChangingNumber is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer, Op
                         '", "nftStatus": "',
                         nftState,
                         '"}],"image": "data:image/svg+xml;base64,',
-                        Base64.encode(bytes(svg)),
+                        Base64.encode(bytes(zabuton.getImage(number))),
                         '"}'
                     )
                 )
@@ -241,6 +232,16 @@ contract ChangingNumber is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer, Op
         publicMint = _status;
     }
 
+    /// @dev get Zabuton address for URI building
+    function getZabutonImageContractAddress() public view returns (address) {
+        return zabutonAddress;
+    }
+
+    /// @dev set Zabuton address for URI building
+    function setZabutonImageContractAddress(address _zabutonAddress) public onlyOwner {
+        zabutonAddress = _zabutonAddress;
+    }
+
     // ******************** DefaultOperatorFilterer ******************** //
     function setApprovalForAll(address operator, bool approved) public override onlyAllowedOperatorApproval(operator) {
         super.setApprovalForAll(operator, approved);
@@ -250,28 +251,15 @@ contract ChangingNumber is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer, Op
         super.approve(operator, tokenId);
     }
 
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override onlyAllowedOperator(from) {
+    function transferFrom(address from, address to, uint256 tokenId) public override onlyAllowedOperator(from) {
         super.transferFrom(from, to, tokenId);
     }
 
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override onlyAllowedOperator(from) {
+    function safeTransferFrom(address from, address to, uint256 tokenId) public override onlyAllowedOperator(from) {
         super.safeTransferFrom(from, to, tokenId);
     }
 
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes memory data
-    ) public override onlyAllowedOperator(from) {
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public override onlyAllowedOperator(from) {
         super.safeTransferFrom(from, to, tokenId, data);
     }
 

@@ -5,14 +5,21 @@ var fs = require("fs");
 describe("ChangingNumber", function () {
   let BadgeToken;
   let token721;
-  let _name="ChangingNumber3";
-  let _symbol="CN3";
+  let _name="ChangingNumber4";
+  let _symbol="CN4";
   let a1, a2, a3,a4, a5;
+  let zabutonImage;
 
   beforeEach(async function () {
+    //ZabutonImage
+    const ZabutonImage = await ethers.getContractFactory("ZabutonImage");
+    zabutonImage = await ZabutonImage.deploy();
+
     token = await ethers.getContractFactory("ChangingNumber");
     [owner, a1, a2, a3, a4, a5] = await ethers.getSigners();
     token721 = await token.deploy();
+    //ChangingNumberにZabutonImageのアドレスを登録
+    await token721.setZabutonImageContractAddress(zabutonImage.address);
   });
 
   // You can nest describe calls to create subsections.
@@ -67,7 +74,7 @@ describe("ChangingNumber", function () {
     // });
 
 
-    it("Should output tokeURI", async function () {
+    it("Should output tokenURI", async function () {
       await token721.setMintable(true);
       await token721.addAllowedMinters([a1.address]);
       await token721.connect(a1).mint();
@@ -86,12 +93,12 @@ describe("ChangingNumber", function () {
       fs.writeFileSync("tmp/test1.svg", image);
     });
 
-    it("Should output tokeURI", async function () {
+    it("Should output tokenURI2", async function () {
       await token721.setMintable(true);
       await token721.addAllowedMinters([a1.address]);
       await token721.connect(a1).mint();
       await token721.changeNumber(1,2);
-
+      
       let tokenURI = await token721.tokenURI(1);
       let metaData = Buffer.from(tokenURI.split(",")[1], 'base64').toString('ascii');
       //console.log(metaData);
