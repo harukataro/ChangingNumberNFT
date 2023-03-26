@@ -43,7 +43,7 @@ contract ChangingNumber is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer, Op
 
         currentTokenId.increment();
         uint256 newItemId = currentTokenId.current();
-        _safeMint(msg.sender, newItemId);
+        _mint(msg.sender, newItemId);
         myNumber[newItemId] = 1;
         return newItemId;
     }
@@ -56,7 +56,7 @@ contract ChangingNumber is ERC721, ERC4906, ERC2981, DefaultOperatorFilterer, Op
 
         currentTokenId.increment();
         uint256 newItemId = currentTokenId.current();
-        _safeMint(recipient, newItemId);
+        _mint(recipient, newItemId);
         myNumber[newItemId] = 1;
         return newItemId;
     }
